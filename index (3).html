@@ -1,0 +1,332 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Dijital Umut Merkezi</title>
+  <!-- Latest CDN links for React and Babel -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      -webkit-text-size-adjust: 100%;
+      padding-bottom: calc(64px + env(safe-area-inset-bottom));
+      -webkit-overflow-scrolling: touch;
+    }
+    button, input {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    .nav-bar {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .profile-img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 2px solid #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div id="root" class="min-h-screen bg-gray-100"></div>
+  <div id="error" class="hidden text-center text-red-500 p-4">Uygulama yüklenemedi. Lütfen konsolu kontrol edin.</div>
+  <script type="text/babel">
+    console.log("Script loaded. React available:", typeof React !== "undefined");
+    if (typeof React === "undefined" || typeof ReactDOM === "undefined") {
+      document.getElementById("error").classList.remove("hidden");
+      throw new Error("React veya ReactDOM yüklenemedi. CDN bağlantılarını kontrol edin.");
+    }
+    const { useState, useEffect } = React;
+
+    const tasks = [
+      { id: 1, category: "Grafik Tasarım", name: "Sosyal Medya Postu Tasarımı", level: "Başlangıç", points: 50, description: "Belediyeye ait bir sosyal medya postu tasarlayın." },
+      { id: 2, category: "Kodlama", name: "Basit Web Sayfası", level: "Başlangıç", points: 75, description: "HTML ve CSS ile bir web sayfası oluşturun." },
+      { id: 3, category: "Video Montaj", name: "Kısa Tanıtım Videosu", level: "Orta", points: 100, description: "1 dakikalık bir tanıtım videosu hazırlayın." },
+    ];
+
+    const motivationalQuotes = [
+      "Başarı, küçük adımlarla başlar. Bugün bir adım at!",
+      "Hedeflerine ulaşmak için durma, devam et!",
+      "Her görev, seni hayallerine bir adım daha yaklaştırır.",
+      "Zorluklar, büyümenin sadece bir parçasıdır!",
+      "Kendi yolunu çiz, imkânsız diye bir şey yok!"
+    ];
+
+    function Dashboard({ user, setUser, getCareerRecommendation }) {
+      const [quote] = useState(motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)]);
+      const [tempName, setTempName] = useState(user.name);
+
+      const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setUser((prev) => ({ ...prev, profileImage: reader.result }));
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      const handleNameUpdate = () => {
+        if (tempName.trim()) {
+          setUser((prev) => ({ ...prev, name: tempName.trim() }));
+        }
+      };
+
+      return (
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-4 sm:mb-6">
+          <div className="flex flex-col items-center mb-4">
+            <img
+              src={user.profileImage || "https://via.placeholder.com/80"}
+              alt="Profil Fotoğrafı"
+              className="profile-img mb-2"
+            />
+            <label className="cursor-pointer bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+              Fotoğraf Yükle
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+            </label>
+          </div>
+          <div className="flex flex-col items-center mb-4">
+            <input
+              type="text"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              placeholder="İsminizi girin"
+              className="border rounded px-3 py-2 w-full max-w-xs text-sm sm:text-base mb-2"
+            />
+            <button
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm sm:text-base"
+              onClick={handleNameUpdate}
+            >
+              İsim Güncelle
+            </button>
+          </div>
+          <h2 className="text-lg sm:text-xl font-semibold text-center">Hoş Geldin, {user.name}</h2>
+          <p className="text-sm sm:text-base text-center italic bg-gray-100 p-3 rounded mt-4">{quote}</p>
+          <p className="text-sm sm:text-base mt-2">Seviye: <span className="font-bold">{user.level}</span></p>
+          <p className="text-sm sm:text-base">Puan: <span className="font-bold">{user.points}</span></p>
+          <p className="text-sm sm:text-base">Rozetler: {user.badges.length > 0 ? user.badges.join(", ") : "Henüz rozet yok."}</p>
+          <p className="text-sm sm:text-base">Kariyer Önerisi: {getCareerRecommendation()}</p>
+        </div>
+      );
+    }
+
+    function Tasks({ tasks, completeTask }) {
+      return (
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl font-semibold mb-4">Görevler</h2>
+          <div className="flex flex-col gap-4">
+            {tasks.map((task) => (
+              <div key={task.id} className="border p-4 rounded-lg">
+                <h3 className="font-semibold text-base sm:text-lg">{task.name}</h3>
+                <p className="text-sm sm:text-base">Kategori: {task.category}</p>
+                <p className="text-sm sm:text-base">Seviye: {task.level}</p>
+                <p className="text-sm sm:text-base">Puan: {task.points}</p>
+                <p className="text-sm sm:text-base">{task.description}</p>
+                <button
+                  className="mt-2 w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm sm:text-base"
+                  onClick={() => completeTask(task)}
+                >
+                  Görevi Tamamla
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function Portfolio({ user }) {
+      return (
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl font-semibold mb-4">Portföy</h2>
+          {user.portfolio.length > 0 ? (
+            <ul className="list-disc pl-5 text-sm sm:text-base">
+              {user.portfolio.map((item, index) => (
+                <li key={index}>
+                  {item.name} - {item.description} (Tamamlanma: {item.date})
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm sm:text-base">Henüz portföyde bir şey yok. Görevleri tamamla!</p>
+          )}
+        </div>
+      );
+    }
+
+    function MunicipalIntegration({ user }) {
+      return (
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl font-semibold mb-4">Belediye Entegrasyonu</h2>
+          <p className="text-sm sm:text-base">Sertifika: {user.points >= 100 ? "Sertifika almaya hak kazandınız!" : "100 puana ulaşın."}</p>
+          <p className="text-sm sm:text-base">İstihdam: {user.points >= 200 ? "Yerel ajanslarla eşleştirme için uygunsunuz!" : "Daha fazla puan toplayın."}</p>
+          <button className="mt-2 w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 text-sm sm:text-base">
+            Sertifika İndir (Yakında)
+          </button>
+        </div>
+      );
+    }
+
+    function App() {
+      const [user, setUser] = useState({
+        name: "Mehmet",
+        level: "Başlangıç",
+        points: 0,
+        badges: [],
+        portfolio: [],
+        profileImage: null,
+      });
+      const [activePage, setActivePage] = useState("dashboard");
+
+      useEffect(() => {
+        const savedUser = JSON.parse(localStorage.getItem("user"));
+        if (savedUser) setUser(savedUser);
+      }, []);
+
+      useEffect(() => {
+        localStorage.setItem("user", JSON.stringify(user));
+      }, [user]);
+
+      const completeTask = (task) => {
+        setUser((prev) => {
+          const newPoints = prev.points + task.points;
+          let newLevel = prev.level;
+          if (newPoints >= 200 && prev.level === "Başlangıç") newLevel = "Orta";
+          else if (newPoints >= 500 && prev.level === "Orta") newLevel = "İleri";
+          else if (newPoints >= 1000 && prev.level === "İleri") newLevel = "Uzman";
+          return {
+            ...prev,
+            points: newPoints,
+            level: newLevel,
+            badges: [...prev.badges, `${task.name} Rozeti`],
+            portfolio: [...prev.portfolio, { name: task.name, description: task.description, date: new Date().toLocaleDateString() }],
+          };
+        });
+      };
+
+      const getCareerRecommendation = () => {
+        if (user.points >= 200) return "Grafik Tasarımcı veya Web Geliştirici";
+        return "Başlangıç seviyesindesiniz, daha fazla görev tamamlayın!";
+      };
+
+      const renderPage = () => {
+        switch (activePage) {
+          case "dashboard":
+            return <Dashboard user={user} setUser={setUser} getCareerRecommendation={getCareerRecommendation} />;
+          case "tasks":
+            return <Tasks tasks={tasks} completeTask={completeTask} />;
+          case "portfolio":
+            return <Portfolio user={user} />;
+          case "municipal":
+            return <MunicipalIntegration user={user} />;
+          default:
+            return <Dashboard user={user} setUser={setUser} getCareerRecommendation={getCareerRecommendation} />;
+        }
+      };
+
+      return (
+        <div className="container mx-auto p-4 sm:p-6 max-w-lg relative">
+          <h1 className="text-2xl sm:text-3xl font-bold text-center mb-4 sm:mb-6">Dijital Umut Merkezi</h1>
+          {renderPage()}
+          {/* Bottom Navigation Bar */}
+          <div className="nav-bar fixed bottom-0 left-0 right-0 bg-white shadow-t flex justify-around items-center h-16 border-t border-gray-200">
+            <button
+              className={`flex-1 flex flex-col items-center p-2 ${activePage === "dashboard" ? "text-blue-500" : "text-gray-600"}`}
+              onClick={() => setActivePage("dashboard")}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              <span className="text-xs sm:text-sm">Hoş Geldin</span>
+            </button>
+            <button
+              className={`flex-1 flex flex-col items-center p-2 ${activePage === "tasks" ? "text-blue-500" : "text-gray-600"}`}
+              onClick={() => setActivePage("tasks")}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <span className="text-xs sm:text-sm">Görevler</span>
+            </button>
+            <button
+              className={`flex-1 flex flex-col items-center p-2 ${activePage === "portfolio" ? "text-blue-500" : "text-gray-600"}`}
+              onClick={() => setActivePage("portfolio")}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              <span className="text-xs sm:text-sm">Portföy</span>
+            </button>
+            <button
+              className={`flex-1 flex flex-col items-center p-2 ${activePage === "municipal" ? "text-blue-500" : "text-gray-600"}`}
+              onClick={() => setActivePage("municipal")}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+              </svg>
+              <span className="text-xs sm:text-sm">Belediye</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    try {
+      ReactDOM.render(<App />, document.getElementById("root"));
+    } catch (e) {
+      console.error("Rendering failed:", e);
+      document.getElementById("error").classList.remove("hidden");
+    }
+  </script>
+</body>
+</html>
